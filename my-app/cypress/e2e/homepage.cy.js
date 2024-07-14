@@ -14,6 +14,7 @@ describe('loading homepage', () => {
       },
       headers: {
         'Content-Type': 'application/json',
+        'x-hasura-admin-secret': 'secret'
       }
     }).then((response) => {
       expect(response.status).to.eq(200);
@@ -21,7 +22,7 @@ describe('loading homepage', () => {
       cy.visit('/');
       cy.contains('Webite is Running');
     });
-    
+
   })
 
   it('should find the text "Website is under maintenance" when the website is in maintenance mode', () => {
@@ -35,6 +36,7 @@ describe('loading homepage', () => {
       },
       headers: {
         'Content-Type': 'application/json',
+        'x-hasura-admin-secret': 'secret'
       }
     }).then((response) => {
       expect(response.status).to.eq(200);
