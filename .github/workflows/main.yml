@@ -15,53 +15,32 @@ defaults:
 jobs:
   test:
     runs-on: "ubuntu-latest"
-    
-    env:
-      CI: true
 
     services:
-      - name: postgres
-        alias: postgres
-      - name: hasura/graphql-engine:v2.40.0
-        alias: graphql-engine # this is the hostname where the service can be accessed
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-    variables:
-      FF_NETWORK_PER_BUILD: 1 # see https://docs.gitlab.com/ee/ci/services/#connecting-services
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
-      HASURA_GRAPHQL_DATABASE_URL: postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
-      PG_DATABASE_URL: postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
-      HASURA_GRAPHQL_ENDPOINT: http://graphql-engine:8080
-
-    script:
-      - apt update && apt upgrade --yes
-      - apt install curl --yes
-      - curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
-
-      # Apply the migrations to the fresh DB
-      - cd hasura
-      - hasura metadata apply # at this point, the metadata will be inconsistent, since migrations have not been applied yet
-      - hasura migrate apply --database-name $HASURA_DATABASE_NAME
-      - hasura migrate status --database-name $HASURA_DATABASE_NAME
-      - hasura seeds apply --database-name $HASURA_DATABASE_NAME
-      - hasura metadata reload # hasura will check again and metadata should now be consistent with database information.
-      - |
-      output=$(hasura metadata inconsistency status 2>&1)
-      if [[ ! "$output" != *"metadata is consistent"* ]]; then
-        hasura metadata ic list
-        exit 1
-      fi
-    rules:
-      # Automatically run on any merge request that updates the hasura directory
-      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-        changes:
-          - hasura/migrations/**/*
-          - hasura/metadata/**/*
-          - hasura/seeds/**/*
-      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-          when: manual # If the hasura files haven't changed allow the user to choose to manually run it
-          allow_failure: true # the pipeline continues running even if the manual job is not run
+      graphql-engine:
+        image: hasura/graphql-engine:v2.40.0
+        ports:
+          - 8080:8080
+        env:
+          HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+          HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+          HASURA_GRAPHQL_DEV_MODE: "true"
+          HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+          HASURA_GRAPHQL_ADMIN_SECRET: secret
 
     steps:
         - name: checkout
@@ -74,6 +53,45 @@ jobs:
         - name: build my-app
           working-directory: my-app
           run: npm ci && npm run build --if-present
+
+        - name: Install Hasura CLI
+          run: |
+            curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+            hasura version
+
+        - name: Wait for PostgreSQL to be ready
+          run: |
+            until pg_isready -h localhost -p 5432 -U postgres; do
+              echo "Waiting for postgres container..."
+              sleep 2
+            done
+
+        - name: Apply Hasura migrations and metadata
+          working-directory: hasura
+          run: |
+            hasura metadata apply --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate status --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura seeds apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura metadata reload --endpoint http://localhost:8080 --admin-secret secret
+    
+        - name: Check Hasura metadata consistency
+          working-directory: hasura
+          run: |
+            output=$(hasura metadata inconsistency status --endpoint http://localhost:8080 --admin-secret secret 2>&1)
+            if [[ "$output" != *"metadata is consistent"* ]]; then
+              hasura metadata ic list --endpoint http://localhost:8080 --admin-secret youradminsecret
+              exit 1
+            fi
+
+        - name: Start the application
+          working-directory: my-app
+          run: npm start &
+          env:
+            CI: true
+
+        - name: Wait for application to be available
+          run: npx wait-on http://localhost:3000
 
         - name: run tests
           working-directory: my-app
