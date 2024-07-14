@@ -1,5 +1,5 @@
 import "./App.css";
-import { ApolloClient, gql, InMemoryCache, useQuery } from "@apollo/client";
+import { ApolloClient, gql, InMemoryCache } from "@apollo/client";
 import { useState } from "react";
 
 function App() {
