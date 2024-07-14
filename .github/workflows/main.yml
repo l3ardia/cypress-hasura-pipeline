@@ -1,0 +1,92 @@
+name: Main
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - dev
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-and-test:
+    runs-on: "ubuntu-latest"
+
+    services:
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      graphql-engine:
+        image: hasura/graphql-engine:v2.40.0
+        ports:
+          - 8080:8080
+        env:
+          PG_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+          HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+          HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+          HASURA_GRAPHQL_DEV_MODE: "true"
+          HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+    steps:
+        - name: checkout
+          uses: actions/checkout@v4
+
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 22.1.0
+
+        - name: install my-app
+          working-directory: my-app
+          run: npm ci
+
+        - name: Install Hasura CLI
+          run: |
+            curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+            hasura version
+
+        - name: Wait for PostgreSQL to be ready
+          run: |
+            until pg_isready -h localhost -p 5432 -U postgres; do
+              echo "Waiting for postgres container..."
+              sleep 2
+            done
+
+        - name: Apply Hasura migrations and metadata
+          working-directory: hasura
+          run: |
+            hasura metadata apply --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate status --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura seeds apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura metadata reload --endpoint http://localhost:8080 --admin-secret secret
+    
+        - name: Check Hasura metadata consistency
+          working-directory: hasura
+          run: |
+            output=$(hasura metadata inconsistency status --endpoint http://localhost:8080 --admin-secret secret 2>&1)
+            if [[ "$output" != *"metadata is consistent"* ]]; then
+              hasura metadata ic list --endpoint http://localhost:8080 --admin-secret secret
+              exit 1
+            fi
+
+        - name: Cypress run
+          uses: cypress-io/github-action@v6
+          with:
+            build: npm run build
+            start: npm start
+            browser: chrome
+            working-directory: my-app
