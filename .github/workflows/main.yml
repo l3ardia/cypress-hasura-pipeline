@@ -85,15 +85,6 @@ jobs:
               exit 1
             fi
 
-        - name: Start the application
-          working-directory: my-app
-          run: npm start &
-          env:
-            CI: true
-
-        - name: Wait for application to be available
-          run: npx wait-on http://localhost:3000
-
         - name: Cypress run
           uses: cypress-io/github-action@v6
           with:
