@@ -1,0 +1,9 @@
+- comment: ""
+  definition:
+    query:
+      collection_name: allowed-queries
+      query_name: update_settings_by_pk
+  methods:
+    - POST
+  name: update_settings_by_pk
+  url: settings/:id

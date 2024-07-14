@@ -1,0 +1,13 @@
+{
+  "name": "cypress-hasura-pipeline",
+  "description": "This project simulates a CI/CD pipeline with Hasura and Cypress as testing framework",
+  "workspaces": [
+    "my-app",
+    "hasura"
+  ],
+  "scripts": {},
+  "devDependencies": {
+    "prettier": "^2.6.0"
+  },
+  "version": "1.0.0"
+}
