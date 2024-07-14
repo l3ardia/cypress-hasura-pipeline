@@ -48,7 +48,7 @@ jobs:
       - hasura metadata reload # hasura will check again and metadata should now be consistent with database information.
       - |
       output=$(hasura metadata inconsistency status 2>&1)
-      if [[ ! $output =~ "metadata is consistent" ]]; then
+      if [[ ! "$output" != *"metadata is consistent"* ]]; then
         hasura metadata ic list
         exit 1
       fi
