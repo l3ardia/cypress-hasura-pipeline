@@ -70,18 +70,18 @@ jobs:
         - name: Apply Hasura migrations and metadata
           working-directory: hasura
           run: |
-            hasura metadata apply
-            hasura migrate apply --database-name default
-            hasura migrate status --database-name default
-            hasura seeds apply --database-name default
-            hasura metadata reload
+            hasura metadata apply --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura migrate status --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura seeds apply --database-name default --endpoint http://localhost:8080 --admin-secret secret
+            hasura metadata reload --endpoint http://localhost:8080 --admin-secret secret
     
         - name: Check Hasura metadata consistency
           working-directory: hasura
           run: |
-            output=$(hasura metadata inconsistency status 2>&1)
+            output=$(hasura metadata inconsistency status --endpoint http://localhost:8080 --admin-secret secret 2>&1)
             if [[ "$output" != *"metadata is consistent"* ]]; then
-              hasura metadata ic list
+              hasura metadata ic list --endpoint http://localhost:8080 --admin-secret secret
               exit 1
             fi
 
