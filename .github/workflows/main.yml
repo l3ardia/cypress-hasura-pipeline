@@ -94,7 +94,8 @@ jobs:
         - name: Wait for application to be available
           run: npx wait-on http://localhost:3000
 
-        - name: run tests
+        - name: Cypress run
           working-directory: my-app
-          run: npx cypress run
-          
+          uses: cypress-io/github-action@v6
+          with:
+            browser: chrome
