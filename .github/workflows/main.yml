@@ -97,7 +97,7 @@ jobs:
         - name: Cypress run
           uses: cypress-io/github-action@v6
           with:
-            build: cd my-app & npm run build
-            start: cd my-app & npm start
+            build: npm run build
+            start: npm start
             browser: chrome
             working-directory: my-app
