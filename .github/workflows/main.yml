@@ -36,6 +36,7 @@ jobs:
         ports:
           - 8080:8080
         env:
+          PG_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
           HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
           HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
           HASURA_GRAPHQL_DEV_MODE: "true"
