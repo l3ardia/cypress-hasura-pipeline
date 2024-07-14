@@ -95,7 +95,6 @@ jobs:
           run: npx wait-on http://localhost:3000
 
         - name: Cypress run
-          working-directory: my-app
           uses: cypress-io/github-action@v6
           with:
             browser: chrome
