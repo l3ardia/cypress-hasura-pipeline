@@ -3,8 +3,9 @@ import { ApolloClient, gql, InMemoryCache } from "@apollo/client";
 import { useState } from "react";
 
 function App() {
-
-  const [isUnderMaintenance, setIsUnderMaintenance] = useState<boolean>(false);
+  const [isUnderMaintenance, setIsUnderMaintenance] = useState<boolean | null>(
+    null
+  );
 
   const client = new ApolloClient({
     cache: new InMemoryCache(),
@@ -20,20 +21,28 @@ function App() {
     }
   `;
 
-  client.query({
-    query: GET_SETTINGS
-  }).then((results) => {
-    setIsUnderMaintenance(results.data?.settings[0]?.is_under_maintenance)
-  })
+  client
+    .query({
+      query: GET_SETTINGS,
+    })
+    .then((results) => {
+      setIsUnderMaintenance(results.data?.settings[0]?.is_under_maintenance);
+    });
 
   return (
     <div className="App">
       <header className="App-header">
-          {isUnderMaintenance ? (
-            <div>Website is under maintenance</div>
-          ) : (
-            <div>Webite is Running</div>
-          ) }
+        {isUnderMaintenance === null ? (
+          <div>Loading</div>
+        ) : (
+          <>
+            {isUnderMaintenance ? (
+              <div>Website is under maintenance</div>
+            ) : (
+              <div>Webite is Running</div>
+            )}
+          </>
+        )}
       </header>
     </div>
   );
